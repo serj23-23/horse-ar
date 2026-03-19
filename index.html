@@ -1,11 +1,68 @@
 <a-scene embedded arjs>
-  <a-marker preset="hiro">
-    <!-- Простейшая лошадь (коробка пока) -->
-    <a-box position="0 0.5 0" material="color: brown"></a-box>
-  </a-marker>
-  <a-entity camera></a-entity>
-</a-scene>
 
-<!-- Скрипты подключаем внизу -->
-<script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/ar.js@3.3.2/aframe/build/aframe-ar.js"></script>
+  <!-- Камера -->
+  <a-entity camera></a-entity>
+
+  <!-- Маркер Hiro -->
+  <a-marker preset="hiro">
+
+    <!-- 3D модель лошади -->
+    <a-entity 
+      id="horse"
+      gltf-model="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models/2.0/Horse/glTF/Horse.gltf" 
+      scale="0.01 0.01 0.01" 
+      position="0 0 0">
+    </a-entity>
+
+  </a-marker>
+
+  <a-entity camera></a-entity>
+
+  <!-- MediaPipe Hand Tracking (через стороннюю библиотеку) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <script>
+    // Находим лошадь
+    const horse = document.querySelector('#horse');
+
+    // Создаём видео для MediaPipe
+    const videoElement = document.createElement('video');
+    videoElement.style.display = 'none';
+    document.body.appendChild(videoElement);
+
+    const hands = new Hands({locateFile: (file) => {
+      return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+    }});
+
+    hands.setOptions({
+      maxNumHands: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.5
+    });
+
+    hands.onResults(results => {
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const hand = results.multiHandLandmarks[0];
+        const z = hand[0].z; // глубина руки
+
+        // Чем ближе рука, тем больше масштаб лошади (имитация подхода)
+        horse.setAttribute('scale', `${0.01 + (0.01 - z*0.01)} ${0.01 + (0.01 - z*0.01)} ${0.01 + (0.01 - z*0.01)}`);
+      }
+    });
+
+    const cameraMp = new Camera(videoElement, {
+      onFrame: async () => { await hands.send({image: videoElement}); },
+      width: 640,
+      height: 480
+    });
+    cameraMp.start();
+  </script>
+
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <!-- AR.js -->
+  <script src="https://cdn.jsdelivr.net/npm/ar.js@3.3.2/aframe/build/aframe-ar.js"></script>
+
+</a-scene>
